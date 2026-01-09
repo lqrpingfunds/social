@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SocialClass • Chat & Communities</title>
+<style>
+  :root {
+    --bg: #36393f;
+    --bg-dark: #2f3136;
+    --bg-darker: #202225;
+    --text: #dcddde;
+    --text-muted: #b9bbbe;
+    --primary: #5865f2;
+    --primary-dark: #4752c4;
+    --green: #3ba55c;
+    --red: #ed4245;
+    --sidebar-width: 240px;
+    --channel-bar-width: 72px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: "gg sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: var(--channel-bar-width) var(--sidebar-width) 1fr;
+    grid-template-rows: 100%;
+  }
+
+  /* Left tiny bar (guilds/servers) */
+  #guild-bar {
+    background: var(--bg-darker);
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .guild-icon {
+    width: 48px;
+    height: 48px;
+    background: #5865f2;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: bold;
+    font-size: 18px;
+    color: white;
+    cursor: pointer;
+    transition: border-radius .2s, background .2s;
+  }
+  .guild-icon:hover, .guild-icon.active {
+    border-radius: 30%;
+    background: var(--primary);
+  }
+  .guild-icon.home { background: #36393f; font-size: 24px; }
+
+  /* Server sidebar (channels + members) */
+  #server-sidebar {
+    background: var(--bg-dark);
+    display: flex;
+    flex-direction: column;
+  }
+
+  #server-header {
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid #202225;
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  #channels {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .channel {
+    padding: 8px 16px;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .channel:hover { background: rgba(255,255,255,0.04); }
+  .channel.active {
+    background: rgba(255,255,255,0.08);
+    color: white;
+  }
+  .channel::before { content: "# "; opacity: 0.6; }
+
+  /* Main chat area */
+  #main-area {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    background: var(--bg);
+  }
+
+  #chat-header {
+    padding: 0 16px;
+    height: 48px;
+    background: var(--bg-dark);
+    border-bottom: 1px solid #202225;
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: white;
+  }
+
+  #messages {
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .message {
+    display: flex;
+    gap: 16px;
+  }
+  .message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+  }
+  .message-content {
+    flex: 1;
+  }
+  .message-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .username {
+    font-weight: 600;
+    color: #fff;
+  }
+  .timestamp {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .message-text { line-height: 1.35; }
+
+  /* Input area */
+  #message-input-area {
+    padding: 12px 16px;
+    background: var(--bg-dark);
+    border-top: 1px solid #202225;
+  }
+  #message-form {
+    display: flex;
+  }
+  #message-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: #40444b;
+    color: white;
+    font-size: 15px;
+  }
+  #message-input:focus {
+    outline: none;
+    background: #4a4e56;
+  }
+
+  /* Auth / Profile modal */
+  #auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .auth-box {
+    background: #36393f;
+    padding: 32px;
+    border-radius: 8px;
+    width: 440px;
+    max-width: 90vw;
+  }
+  .auth-box h2 { margin-bottom: 20px; text-align: center; }
+  .form-group {
+    margin-bottom: 16px;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    background: #202225;
+    color: white;
+  }
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .error { color: var(--red); font-size: 13px; margin-top: 4px; }
+
+  /* Profile section (top right) */
+  #profile-area {
+    padding: 0 16px;
+    height: 68px;
+    background: #292b2f;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    border-bottom: 1px solid #202225;
+  }
+  #current-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #current-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #5865f2;
+    background-size: cover;
+  }
+  #current-username {
+    font-weight: 600;
+  }
+  #logout-btn {
+    background: #ed4245aa;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- Login / Register Modal -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <h2 id="auth-title">Welcome to SocialClass</h2>
+    
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="input-username" placeholder="coolperson123" autocomplete="off" />
+      <div id="username-error" class="error"></div>
+    </div>
+
+    <div class="form-group" id="password-group">
+      <label>Password (just for fun - stored in browser)</label>
+      <input type="password" id="input-password" placeholder="••••••••" />
+    </div>
+
+    <button class="btn btn-primary" id="auth-submit">Continue</button>
+    <div style="margin-top:16px; text-align:center;">
+      <a href="#" id="switch-auth-mode" style="color:var(--primary)">Need an account? Register</a>
+    </div>
+  </div>
+</div>
+
+<!-- Layout -->
+<div id="guild-bar">
+  <div class="guild-icon home active" title="Home">🏠</div>
+  <div class="guild-icon" title="SocialClass">SC</div>
+</div>
+
+<div id="server-sidebar">
+  <div id="server-header">SocialClass Central</div>
+  
+  <div id="channels">
+    <div class="channel active" data-id="general">general</div>
+    <div class="channel" data-id="memes">memes</div>
+    <div class="channel" data-id="off-topic">off-topic</div>
+  </div>
+</div>
+
+<div id="main-area">
+  <div id="chat-header"># general</div>
+
+  <div id="messages"></div>
+
+  <div id="message-input-area">
+    <form id="message-form">
+      <input type="text" id="message-input" placeholder="Message #general" autocomplete="off" />
+    </form>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────────
+// VERY SIMPLE SOCIALCLASS PROTOTYPE
+// ──────────────────────────────────────────────────────────────
+
+const STORAGE_KEY_USERS = 'socialclass_users';
+const STORAGE_KEY_CURRENT = 'socialclass_current_user';
+const STORAGE_KEY_MESSAGES = 'socialclass_messages';
+
+let currentUser = null;
+let currentChannel = 'general';
+
+// ── Data ────────────────────────────────────────────────────────
+function loadUsers() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY_USERS) || '{}');
+}
+
+function saveUsers(users) {
+  localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+}
+
+function loadMessages() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY_MESSAGES) || '{}');
+}
+
+function saveMessages(messages) {
+  localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+}
+
+function getCurrentUser() {
+  const username = localStorage.getItem(STORAGE_KEY_CURRENT);
+  if (!username) return null;
+  const users = loadUsers();
+  return users[username] || null;
+}
+
+// ── Auth ─────────────────────────────────────────────────────────
+const authOverlay = document.getElementById('auth-overlay');
+const authTitle = document.getElementById('auth-title');
+const inputUsername = document.getElementById('input-username');
+const inputPassword = document.getElementById('input-password');
+const usernameError = document.getElementById('username-error');
+const authSubmit = document.getElementById('auth-submit');
+const switchMode = document.getElementById('switch-auth-mode');
+
+let isLoginMode = true;
+
+function showAuth(isLogin = true) {
+  isLoginMode = isLogin;
+  authTitle.textContent = isLogin ? "Log In to SocialClass" : "Create Account";
+  switchMode.textContent = isLogin 
+    ? "Need an account? Register" 
+    : "Already have an account? Log In";
+  authOverlay.style.display = 'grid';
+  inputUsername.focus();
+}
+
+function hideAuth() {
+  authOverlay.style.display = 'none';
+  usernameError.textContent = '';
+  inputUsername.value = '';
+  inputPassword.value = '';
+}
+
+switchMode.onclick = (e) => {
+  e.preventDefault();
+  showAuth(!isLoginMode);
+};
+
+authSubmit.onclick = () => {
+  const username = inputUsername.value.trim().toLowerCase();
+  const password = inputPassword.value;
+
+  if (!username) {
+    usernameError.textContent = "Username is required";
+    return;
+  }
+
+  const users = loadUsers();
+
+  if (username === 'uax') {
+    usernameError.textContent = "Sorry, username 'uax' is reserved!";
+    return;
+  }
+
+  if (isLoginMode) {
+    // Login
+    if (!users[username] || users[username].password !== password) {
+      usernameError.textContent = "Wrong username or password";
+      return;
+    }
+    currentUser = users[username];
+  } else {
+    // Register
+    if (users[username]) {
+      usernameError.textContent = "Username already taken!";
+      return;
+    }
+    users[username] = {
+      username,
+      password, // NEVER do this in real life!!!
+      avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${username}`,
+      banner: '',
+      joined: new Date().toISOString()
+    };
+    saveUsers(users);
+    currentUser = users[username];
+  }
+
+  localStorage.setItem(STORAGE_KEY_CURRENT, username);
+  hideAuth();
+  initApp();
+};
+
+// ── App init ─────────────────────────────────────────────────────
+function initApp() {
+  currentUser = getCurrentUser();
+  if (!currentUser) {
+    showAuth(true);
+    return;
+  }
+
+  // Show logged-in UI
+  document.getElementById('current-user-avatar').style.backgroundImage = `url(${currentUser.avatar})`;
+  document.getElementById('current-username').textContent = currentUser.username;
+
+  loadChannelMessages(currentChannel);
+}
+
+// ── Messages ─────────────────────────────────────────────────────
+function addMessage(channel, user, text) {
+  const messages = loadMessages();
+  if (!messages[channel]) messages[channel] = [];
+
+  const msg = {
+    id: Date.now(),
+    user: user.username,
+    avatar: user.avatar,
+    text,
+    timestamp: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+  };
+
+  messages[channel].push(msg);
+  saveMessages(messages);
+  renderMessages(channel);
+}
+
+function loadChannelMessages(channel) {
+  currentChannel = channel;
+  document.querySelectorAll('.channel').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.channel[data-id="${channel}"]`).classList.add('active');
+  document.getElementById('chat-header').textContent = `# ${channel}`;
+  renderMessages(channel);
+}
+
+function renderMessages(channel) {
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+
+  const messages = loadMessages()[channel] || [];
+  messages.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'message';
+    div.innerHTML = `
+      <div class="message-avatar" style="background-image:url(${m.avatar})"></div>
+      <div class="message-content">
+        <div class="message-header">
+          <span class="username">${m.user}</span>
+          <span class="timestamp">${m.timestamp}</span>
+        </div>
+        <div class="message-text">${m.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── Events ───────────────────────────────────────────────────────
+document.getElementById('message-form').onsubmit = e => {
+  e.preventDefault();
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+  if (!text || !currentUser) return;
+
+  addMessage(currentChannel, currentUser, text);
+  input.value = '';
+};
+
+document.getElementById('channels').onclick = e => {
+  const channel = e.target.closest('.channel');
+  if (!channel) return;
+  const id = channel.dataset.id;
+  if (id) loadChannelMessages(id);
+};
+
+document.getElementById('logout-btn') = function() {
+  localStorage.removeItem(STORAGE_KEY_CURRENT);
+  location.reload();
+};
+
+// Try to start
+if (getCurrentUser()) {
+  initApp();
+} else {
+  showAuth(true);
+}
+</script>
+</body>
+</html>
